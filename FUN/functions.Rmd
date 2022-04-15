@@ -9,6 +9,11 @@ output: html_document
 library(tidyverse)
 library(dplyr)
 library(R.matlab)
+library(plgp)
+library(ggplot2)
+library(lhs)
+library(laGP)
+library(readr)
 ```
 
 
@@ -37,6 +42,7 @@ return(newmatrix)
 #oldmatrix <- matrix(runif(n=4*6), ncol=6)
 #test1 <- convert_vars(oldmatrix)
 ```
+
 
 # interface between R and Matlab
 
@@ -71,3 +77,120 @@ simulator()
 ```{r}
 close(matlab)
 ```
+
+
+
+
+# ALC function
+
+```{r}
+obj.alc <- function(x, gpi, Xref){
+  return(- sqrt(alcGP(gpi, matrix(x, nrow=1), Xref)))
+}
+```
+
+```{r}
+mymaximin <- function(n, m, T=100000, Xorig=NULL){
+  X <- matrix(runif(n*m), ncol=m) ## initial design
+  d <- distance(X)
+  d <- d[upper.tri(d)]
+  md <- min(d)
+  if(!is.null(Xorig)) { ## new code
+  md2 <- min(distance(X, Xorig))
+  if(md2 < md) md <- md2
+  }
+  for(t in 1:T) {
+  row <- sample(1:n, 1)
+  xold <- X[row,] ## random row selection
+  X[row,] <- runif(m) ## random new row
+  d <- distance(X)
+  d <- d[upper.tri(d)]
+  mdprime <- min(d)
+  if(!is.null(Xorig)) { ## new code
+  mdprime2 <- min(distance(X, Xorig))
+  if(mdprime2 < mdprime) mdprime <- mdprime2
+  }
+  if(mdprime > md) { md <- mdprime ## accept
+  } else { X[row,] <- xold } ## reject
+  }
+  return(X)
+}
+```
+
+```{r}
+xnp1.search <- function(X, gpi, obj=obj.alm, ...)
+{
+start <- mymaximin(nrow(X), 2, T=100*nrow(X), Xorig=X)
+xnew <- matrix(NA, nrow=nrow(start), ncol=ncol(X) + 1)
+for(i in 1:nrow(start)) {
+out <- optim(start[i,], obj, method="L-BFGS-B", lower=0,
+upper=1, gpi=gpi, ...)
+xnew[i,] <- c(out$par, -out$value)
+}
+solns <- data.frame(cbind(start, xnew))
+names(solns) <- c("s1", "s2", "x1", "x2", "val")
+return(solns)
+}
+```
+
+
+
+```{r}
+ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter, f){
+  
+  # need to change f to simulator
+  
+  X <- method(ninit, num_para)
+  y <- f(X)
+  
+  x1 <- x2 <- seq(0, 1, length=niter)
+  XX <- expand.grid(x1, x2)
+  yytrue <- f(XX, sd=0)
+  
+  g <- garg(list(mle=TRUE, max=1), y)
+  d <- darg(list(mle=TRUE, max=0.25), X)
+  gpi <- newGP(X, y, d=d$start, g=g$start, dK=TRUE)
+  mle <- jmleGP(gpi, c(d$min, d$max), c(g$min, g$max), d$ab, g$ab)
+  p <- predGP(gpi, XX, lite=TRUE)
+  rmse.alc <- sqrt(mean((yytrue - p$mean)^2))
+  
+  
+  Xref <- method(niter, num_para)
+  solns <- xnp1.search(X, gpi, obj=obj.alc, Xref=Xref)
+  m <- which.max(solns$val)
+  xnew <- as.matrix(solns[m, 3:4])
+  prog.alc <- solns$val[m]
+  
+  X <- rbind(X, xnew)
+  y <- c(y, f(xnew))
+  updateGP(gpi, xnew, y[length(y)])
+  mle <- rbind(mle, jmleGP(gpi, c(d$min, d$max), c(g$min, g$max),
+  d$ab, g$ab))
+  p <- predGP(gpi, XX, lite=TRUE)
+  rmse.alc <- c(rmse.alc, sqrt(mean((yytrue - p$mean)^2)))
+  
+  d <- darg(list(mle=TRUE), X)
+  for(i in nrow(X):(niter-1)) {
+    Xref <- randomLHS(niter, num_para)
+    solns <- xnp1.search(X, gpi, obj=obj.alc, Xref=Xref)
+    m <- which.max(solns$val)
+    prog.alc <- c(prog.alc, solns$val[m])
+    xnew <- as.matrix(solns[m, 3:4])
+    X <- rbind(X, xnew)
+    y <- c(y, f(xnew))
+    updateGP(gpi, xnew, y[length(y)])
+    mle <- rbind(mle, jmleGP(gpi, c(d$min, d$max), c(g$min, g$max),
+    d$ab, g$ab))
+    p <- predGP(gpi, XX, lite=TRUE)
+    rmse.alc <- c(rmse.alc, sqrt(mean((yytrue - p$mean)^2)))
+  }
+  
+  return(list(X = X, y = y, rmse.alc = rmse.alc))
+}
+```
+
+
+```{r}
+res = ALC(niter = 100)
+```
+
