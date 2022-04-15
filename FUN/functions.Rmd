@@ -1,0 +1,83 @@
+---
+title: "Functions"
+author: "Xige Huang"
+date: '2022-04-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(R.matlab)
+```
+
+
+# convert design to actual scale
+
+```{r}
+convert_scale <- function(OldMax=1, OldMin=0, OldValue, NewMax, NewMin){
+  OldRange = (OldMax - OldMin)  
+  NewRange = (NewMax - NewMin)  
+  NewValue = (((OldValue - OldMin) * NewRange) / OldRange) + NewMin
+}
+convert_vars <- function(oldmatrix){
+  young <- mapply(convert_scale, OldValue = oldmatrix[,1], NewMax = 300e9, NewMin=200e9)
+  poisson <- mapply(convert_scale, OldValue = oldmatrix[,2], NewMax = 0.1, NewMin=0.49)
+  CTE <- mapply(convert_scale, OldValue = oldmatrix[,3], NewMax = 5e-6, NewMin=1.5e-5)
+  thermal <- mapply(convert_scale, OldValue = oldmatrix[,4], NewMax = 5, NewMin=15)
+  temp <- mapply(convert_scale, OldValue = oldmatrix[,5], NewMax = 50, NewMin=360)
+  pressure <- mapply(convert_scale, OldValue = oldmatrix[,6], NewMax = 1e5, NewMin=4.8e5)
+  newmatrix <- matrix(c(young, poisson, CTE, thermal, temp, pressure),
+                      byrow=F, ncol=6)
+return(newmatrix)
+}
+```
+
+```{r}
+#oldmatrix <- matrix(runif(n=4*6), ncol=6)
+#test1 <- convert_vars(oldmatrix)
+```
+
+# interface between R and Matlab
+
+```{r}
+Matlab$startServer()
+matlab <- Matlab()
+isOpen <- open(matlab)
+```
+
+```{r}
+if (!isOpen) throw("MATLAB server is not running: waited 30 seconds.")
+ 
+# set a variable in R and send to MATLB
+ymod = 227E9
+prat = 0.27
+cte = 12.7E-6
+therm = 11.5
+ctemp = 150
+press = 4.5E5
+
+setVariable(matlab,
+            ymod = ymod,
+            prat = prat,
+            cte = cte,
+            therm = therm,
+            ctemp = ctemp,
+            press = press)
+```
+
+```{r}
+evaluate(matlab, "[stress,displ] = simulator(ymod,prat,cte,therm,ctemp,press)")
+```
+
+```{r}
+getVariable(matlab, "stress")
+```
+
+```{r}
+getVariable(matlab, "displ")
+```
+
+```{r}
+close(matlab)
+```
