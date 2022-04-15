@@ -82,34 +82,10 @@ close(matlab)
 
 
 # ALC function
-```{r}
-f <- function(X, sd=0.01){
-  X[,1] <- (X[,1] - 0.5)*6 + 1
-  X[,2] <- (X[,2] - 0.5)*6 + 1
-  y <- X[,1] * exp(-X[,1]^2 - X[,2]^2) + rnorm(nrow(X), sd=sd)
-}
-```
-
 
 ```{r}
 obj.alc <- function(x, gpi, Xref){
   return(- sqrt(alcGP(gpi, matrix(x, nrow=1), Xref)))
-}
-```
-
-```{r}
-xnp1.search <- function(X, gpi, obj=obj.alm, ...)
-{
-start <- mymaximin(nrow(X), 2, T=100*nrow(X), Xorig=X)
-xnew <- matrix(NA, nrow=nrow(start), ncol=ncol(X) + 1)
-for(i in 1:nrow(start)) {
-out <- optim(start[i,], obj, method="L-BFGS-B", lower=0,
-upper=1, gpi=gpi, ...)
-xnew[i,] <- c(out$par, -out$value)
-}
-solns <- data.frame(cbind(start, xnew))
-names(solns) <- c("s1", "s2", "x1", "x2", "val")
-return(solns)
 }
 ```
 
@@ -141,9 +117,29 @@ mymaximin <- function(n, m, T=100000, Xorig=NULL){
 }
 ```
 
+```{r}
+xnp1.search <- function(X, gpi, obj=obj.alm, ...)
+{
+start <- mymaximin(nrow(X), 2, T=100*nrow(X), Xorig=X)
+xnew <- matrix(NA, nrow=nrow(start), ncol=ncol(X) + 1)
+for(i in 1:nrow(start)) {
+out <- optim(start[i,], obj, method="L-BFGS-B", lower=0,
+upper=1, gpi=gpi, ...)
+xnew[i,] <- c(out$par, -out$value)
+}
+solns <- data.frame(cbind(start, xnew))
+names(solns) <- c("s1", "s2", "x1", "x2", "val")
+return(solns)
+}
+```
+
+
 
 ```{r}
-ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter){
+ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter, f){
+  
+  # need to change f to simulator
+  
   X <- method(ninit, num_para)
   y <- f(X)
   
@@ -197,17 +193,4 @@ ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter){
 ```{r}
 res = ALC(niter = 100)
 ```
-
-```{r}
-par(mfrow=c(1,2))
-plot(12:100, res$rmse.alc, col=2, pch=20)
-```
-
-
-
-
-
-
-
-
 
