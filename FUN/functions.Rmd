@@ -194,3 +194,68 @@ ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter, f){
 res = ALC(niter = 100)
 ```
 
+
+# EI
+
+```{r}
+# objective
+obj.EI <- function(x, fmin, gpi, pred=predGPsep)
+- EI(gpi, x, fmin, pred)
+```
+
+```{r}
+eps <- sqrt(.Machine$double.eps) ## used lots below
+EI.search <- function(X, y, gpi, pred=predGPsep, multi.start=5, tol=eps)
+  {
+  m <- which.min(y)
+  fmin <- y[m]
+  start <- matrix(X[m,], nrow=1)
+  if(multi.start > 1)
+  start <- rbind(start, randomLHS(multi.start - 1, ncol(X)))
+  xnew <- matrix(NA, nrow=nrow(start), ncol=ncol(X)+1)
+  for(i in 1:nrow(start)) {
+    if(EI(gpi, start[i,], fmin) <= tol) { out <- list(value=-Inf); next }
+    out <- optim(start[i,], obj.EI, method="L-BFGS-B",
+    lower=0, upper=1, gpi=gpi, pred=pred, fmin=fmin)
+    xnew[i,] <- c(out$par, -out$value)
+  }
+  solns <- data.frame(cbind(start, xnew))
+  names(solns) <- c("s1", "s2", "x1", "x2", "val")
+  solns <- solns[solns$val > tol,]
+  return(solns)
+  }
+```
+
+```{r}
+optim.EI <- function(f, X_init, Y_init, end)
+{
+  X <- X_init
+  y <- Y_init
+  gpi <- newGPsep(X, y, d=0.1, g=1e-6, dK=TRUE)
+  da <- darg(list(mle=TRUE, max=0.5), randomLHS(1000, 2))
+  mleGPsep(gpi, param="d", tmin=da$min, tmax=da$max, ab=da$ab)
+  ## optimization loop of sequential acquisitions
+  maxei <- c()
+  ninit <- nrow(X_init)
+  for(i in (ninit+1):end) {
+    solns <- EI.search(X, y, gpi)
+    m <- which.max(solns$val)
+    maxei <- c(maxei, solns$val[m])
+    xnew <- as.matrix(solns[m,3:4])
+    ynew <- f(xnew)
+    updateGPsep(gpi, xnew, ynew)
+    mleGPsep(gpi, param="d", tmin=da$min, tmax=da$max, ab=da$ab)
+    X <- rbind(X, xnew)
+    y <- c(y, ynew)
+  }
+  ## clean up and return
+  deleteGPsep(gpi)
+  return(list(X=X, y=y, maxei=maxei))
+  }
+```
+
+```{r}
+os <- optim.EI(f, ninit, end)
+```
+
+
