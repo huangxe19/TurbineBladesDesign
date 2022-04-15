@@ -255,7 +255,7 @@ optim.EI <- function(f, X_init, Y_init, end)
 ```
 
 ```{r}
-os <- optim.EI(f, ninit, end)
+os <- optim.EI(f, X_init, Y_init, end)
 ```
 
 
