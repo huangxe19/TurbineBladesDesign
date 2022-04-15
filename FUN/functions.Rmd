@@ -44,38 +44,28 @@ return(newmatrix)
 Matlab$startServer()
 matlab <- Matlab()
 isOpen <- open(matlab)
-```
-
-```{r}
 if (!isOpen) throw("MATLAB server is not running: waited 30 seconds.")
- 
-# set a variable in R and send to MATLB
-ymod = 227E9
-prat = 0.27
-cte = 12.7E-6
-therm = 11.5
-ctemp = 150
-press = 4.5E5
-
-setVariable(matlab,
-            ymod = ymod,
-            prat = prat,
-            cte = cte,
-            therm = therm,
-            ctemp = ctemp,
-            press = press)
 ```
 
 ```{r}
-evaluate(matlab, "[stress,displ] = simulator(ymod,prat,cte,therm,ctemp,press)")
+simulator <- function(ymod = 227E9, prat = 0.27 , cte = 12.7E-6 , therm = 11.5 , ctemp = 150 ,press = 4.5E5){
+  # set a variable in R and send to MATLB
+  setVariable(matlab,
+              ymod = ymod,
+              prat = prat,
+              cte = cte,
+              therm = therm,
+              ctemp = ctemp,
+              press = press)
+  
+  evaluate(matlab, "[stress,displ] = simulator(ymod,prat,cte,therm,ctemp,press)")
+  
+  return(c(getVariable(matlab, "stress")$stress,getVariable(matlab, "displ")$displ))
+}
 ```
 
 ```{r}
-getVariable(matlab, "stress")
-```
-
-```{r}
-getVariable(matlab, "displ")
+simulator()
 ```
 
 ```{r}
