@@ -81,7 +81,7 @@ close(matlab)
 
 
 
-# ALM function
+# ALC function
 ```{r}
 f <- function(X, sd=0.01){
   X[,1] <- (X[,1] - 0.5)*6 + 1
@@ -143,11 +143,11 @@ mymaximin <- function(n, m, T=100000, Xorig=NULL){
 
 
 ```{r}
-ALC <- function(ninit = 12, m = 2, method = randomLHS){
-  X <- method(ninit, m)
+ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter){
+  X <- method(ninit, num_para)
   y <- f(X)
   
-  x1 <- x2 <- seq(0, 1, length=100)
+  x1 <- x2 <- seq(0, 1, length=niter)
   XX <- expand.grid(x1, x2)
   yytrue <- f(XX, sd=0)
   
@@ -159,7 +159,7 @@ ALC <- function(ninit = 12, m = 2, method = randomLHS){
   rmse.alc <- sqrt(mean((yytrue - p$mean)^2))
   
   
-  Xref <- method(100, m)
+  Xref <- method(niter, num_para)
   solns <- xnp1.search(X, gpi, obj=obj.alc, Xref=Xref)
   m <- which.max(solns$val)
   xnew <- as.matrix(solns[m, 3:4])
@@ -174,8 +174,8 @@ ALC <- function(ninit = 12, m = 2, method = randomLHS){
   rmse.alc <- c(rmse.alc, sqrt(mean((yytrue - p$mean)^2)))
   
   d <- darg(list(mle=TRUE), X)
-  for(i in nrow(X):99) {
-    Xref <- randomLHS(100, 2)
+  for(i in nrow(X):(niter-1)) {
+    Xref <- randomLHS(niter, num_para)
     solns <- xnp1.search(X, gpi, obj=obj.alc, Xref=Xref)
     m <- which.max(solns$val)
     prog.alc <- c(prog.alc, solns$val[m])
@@ -195,15 +195,13 @@ ALC <- function(ninit = 12, m = 2, method = randomLHS){
 
 
 ```{r}
-res = ALC()
+res = ALC(niter = 100)
 ```
 
 ```{r}
 par(mfrow=c(1,2))
 plot(12:100, res$rmse.alc, col=2, pch=20)
 ```
-
-
 
 
 
