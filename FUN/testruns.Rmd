@@ -1,0 +1,118 @@
+---
+title: "testruns"
+author: "Xige Huang"
+date: '2022-04-16'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(R.matlab)
+library(plgp)
+library(ggplot2)
+library(lhs)
+library(laGP)
+library(readr)
+```
+
+
+```{r}
+BetaDistD <- function(n, m=2, a = 2,b = 5, T=100000) {  
+  X <- matrix(runif(n*m), ncol=m)    
+  D_init <- distance(X)
+  D_init <- D_init[upper.tri(D_init)]
+  KSD <- ks.test(D_init,"pbeta",a,b)$statistic
+
+  for(t in 1:T) {
+    row <- sample(1:n, 1)             
+    Xold <- X                         
+    X[row,] <- runif(m)             
+    D_s <- distance(X)
+    D_s <- D_s[upper.tri(D_s)]
+    KSDprime <- ks.test(D_s,"pbeta",a,b)$statistic
+    if(KSDprime < KSD) { KSD <- KSDprime 
+    } else { X <- Xold }              
+  }
+
+  return(X)
+}
+```
+
+```{r}
+convert_scale <- function(OldMax=1, OldMin=0, OldValue, NewMax, NewMin){
+  OldRange = (OldMax - OldMin)  
+  NewRange = (NewMax - NewMin)  
+  NewValue = (((OldValue - OldMin) * NewRange) / OldRange) + NewMin
+}
+convert_vars <- function(oldmatrix){
+  young <- mapply(convert_scale, OldValue = oldmatrix[,1], NewMax = 300e9, NewMin=200e9)
+  poisson <- mapply(convert_scale, OldValue = oldmatrix[,2], NewMax = 0.1, NewMin=0.49)
+  CTE <- mapply(convert_scale, OldValue = oldmatrix[,3], NewMax = 5e-6, NewMin=1.5e-5)
+  thermal <- mapply(convert_scale, OldValue = oldmatrix[,4], NewMax = 5, NewMin=15)
+  temp <- mapply(convert_scale, OldValue = oldmatrix[,5], NewMax = 50, NewMin=360)
+  pressure <- mapply(convert_scale, OldValue = oldmatrix[,6], NewMax = 1e5, NewMin=4.8e5)
+  newmatrix <- matrix(c(young, poisson, CTE, thermal, temp, pressure),
+                      byrow=F, ncol=6)
+return(newmatrix)
+}
+```
+
+```{r}
+simulator <- function(input){
+  ymod = input[1]; prat = input[2]; cte = input[3]; 
+  therm = input[4]; ctemp = input[5]; press = input[6]
+  
+  # set a variable in R and send to MATLB
+  setVariable(matlab,
+              ymod = ymod,
+              prat = prat,
+              cte = cte,
+              therm = therm,
+              ctemp = ctemp,
+              press = press)
+  
+  evaluate(matlab, "[stress,displ] = simulator(ymod,prat,cte,therm,ctemp,press)")
+  
+  return(c(getVariable(matlab, "stress")$stress,getVariable(matlab, "displ")$displ))
+}
+```
+
+
+```{r}
+options(matlab="/Applications/MATLAB_R2022a.app/bin/matlab")
+Matlab$startServer()
+matlab <- Matlab()
+isOpen <- open(matlab)
+print(matlab)
+```
+
+
+# Initial Design
+
+```{r}
+# X_init <- BetaDistD(n=20, m=6)
+# write.table(X_init, file='D_init_Beta.txt', row.names = F)
+```
+
+```{r warning=F, message=F}
+#X_init <- read.table('D_init_Beta.txt', header = T)
+#X_init <- as.matrix(X_init)
+#y_1 <- apply(X_init[1:10,], MARGIN=1, FUN=simulator)
+#y_2 <- apply(X_init[11:20,], MARGIN=1, FUN=simulator)
+```
+
+```{r}
+#y1 <- t(y_1)
+#y2 <- t(y_2)
+#y_init <- rbind(y1, y2)
+#write.table(y_init, file='y_init_Beta.txt', row.names = F)
+```
+
+```{r}
+X_init_beta <- read.table('D_init_Beta.txt', header = T) %>% as.matrix()
+y_init_beta <- read.table('y_init_Beta.txt', header = T) %>% as.matrix()
+```
+
+
+

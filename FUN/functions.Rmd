@@ -14,6 +14,30 @@ library(ggplot2)
 library(lhs)
 library(laGP)
 library(readr)
+library(maximin)
+```
+
+# Generate Beta Distribution Design
+```{r}
+BetaDistD <- function(n, m=2, a = 2,b = 5, T=100000) {  
+  X <- matrix(runif(n*m), ncol=m)    
+  D_init <- distance(X)
+  D_init <- D_init[upper.tri(D_init)]
+  KSD <- ks.test(D_init,"pbeta",a,b)$statistic
+
+  for(t in 1:T) {
+    row <- sample(1:n, 1)             
+    Xold <- X                         
+    X[row,] <- runif(m)             
+    D_s <- distance(X)
+    D_s <- D_s[upper.tri(D_s)]
+    KSDprime <- ks.test(D_s,"pbeta",a,b)$statistic
+    if(KSDprime < KSD) { KSD <- KSDprime 
+    } else { X <- Xold }              
+  }
+
+  return(X)
+}
 ```
 
 
@@ -43,18 +67,20 @@ return(newmatrix)
 #test1 <- convert_vars(oldmatrix)
 ```
 
-
 # interface between R and Matlab
-
 ```{r}
+options(matlab="/Applications/MATLAB_R2022a.app/bin/matlab")
 Matlab$startServer()
 matlab <- Matlab()
 isOpen <- open(matlab)
-if (!isOpen) throw("MATLAB server is not running: waited 30 seconds.")
+print(matlab)
 ```
 
 ```{r}
-simulator <- function(ymod = 227E9, prat = 0.27 , cte = 12.7E-6 , therm = 11.5 , ctemp = 150 ,press = 4.5E5){
+simulator <- function(input){
+  ymod = input[1]; prat = input[2]; cte = input[3]; 
+  therm = input[4]; input[5]; input[6]
+  
   # set a variable in R and send to MATLB
   setVariable(matlab,
               ymod = ymod,
@@ -70,14 +96,10 @@ simulator <- function(ymod = 227E9, prat = 0.27 , cte = 12.7E-6 , therm = 11.5 ,
 }
 ```
 
-```{r}
-simulator()
-```
 
 ```{r}
 close(matlab)
 ```
-
 
 
 
@@ -86,34 +108,6 @@ close(matlab)
 ```{r}
 obj.alc <- function(x, gpi, Xref){
   return(- sqrt(alcGP(gpi, matrix(x, nrow=1), Xref)))
-}
-```
-
-```{r}
-mymaximin <- function(n, m, T=100000, Xorig=NULL){
-  X <- matrix(runif(n*m), ncol=m) ## initial design
-  d <- distance(X)
-  d <- d[upper.tri(d)]
-  md <- min(d)
-  if(!is.null(Xorig)) { ## new code
-  md2 <- min(distance(X, Xorig))
-  if(md2 < md) md <- md2
-  }
-  for(t in 1:T) {
-  row <- sample(1:n, 1)
-  xold <- X[row,] ## random row selection
-  X[row,] <- runif(m) ## random new row
-  d <- distance(X)
-  d <- d[upper.tri(d)]
-  mdprime <- min(d)
-  if(!is.null(Xorig)) { ## new code
-  mdprime2 <- min(distance(X, Xorig))
-  if(mdprime2 < mdprime) mdprime <- mdprime2
-  }
-  if(mdprime > md) { md <- mdprime ## accept
-  } else { X[row,] <- xold } ## reject
-  }
-  return(X)
 }
 ```
 
@@ -136,7 +130,7 @@ return(solns)
 
 
 ```{r}
-ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter, f){
+ALC <- function(ninit = 12, num_para = 2, method = randomLHS, niter, f,){
   
   # need to change f to simulator
   
