@@ -18,16 +18,16 @@ library(nloptr)
 ```
 
 ```{r}
-source('/FUN/functions.R')
+source('FUN/functions.R')
 ```
 
 # read data
 
 ```{r}
-X_raw <- as.matrix(read.table('/Design/X_raw.txt', header=T))
-XX_raw <- as.matrix(read.table('/Design/XX_raw.txt', header=T))
-y <- as.matrix(read.table('/Design/Data_init_Beta.txt', header=T))[,7:8]
-yy <- as.matrix(read.table('/Design/test_init.txt', header=T))[,7:8]
+X_raw <- as.matrix(read.table('Design/X_raw.txt', header=T))
+XX_raw <- as.matrix(read.table('Design/XX_raw.txt', header=T))
+y <- as.matrix(read.table('Design/Data_init_Beta.txt', header=T))[,7:8]
+yy <- as.matrix(read.table('Design/test_init.txt', header=T))[,7:8]
 ```
 
 
