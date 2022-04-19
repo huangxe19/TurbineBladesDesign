@@ -38,5 +38,6 @@ experiments is that running the simulator is fairly time-consuming. Therefore, g
 resources and also to make our algorithms and results reproducible, the project is limited to a maximum of
 150 computer experiment runs.
 
-
+## The repository
 **Functions used in this project are in `functions.R`. Example of use can be found in `test_runs.rmd`.**
+**Note that running the simulator on window and macos systems will yield slightly different results.**
