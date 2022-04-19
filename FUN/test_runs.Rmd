@@ -1,0 +1,76 @@
+---
+title: "Untitled"
+author: "Xige Huang"
+date: '2022-04-17'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(plgp)
+library(lhs)
+library(laGP)
+library(maximin)
+library(ggplot2)
+library(R.matlab)
+library(nloptr)
+library(randomForest)
+```
+
+
+# open matlab connection
+```{r}
+options(matlab="/Applications/MATLAB_R2022a.app/bin/matlab")
+Matlab$startServer()
+matlab <- Matlab()
+isOpen <- open(matlab)
+print(matlab)
+```
+
+```{r}
+source('functions.R')
+```
+
+
+# run ALC with constraints
+
+
+```{r}
+X <- as.matrix(read.table('Design/X_raw', header=T))
+y <- as.matrix(read.table('Design/X_Beta', header=T))
+yy <- as.matrix(read.table('Design/test_30.txt', header=T))[,7:8]
+XX_raw <- as.matrix(read.table('Design/test_30.txt', header=T))[,1:6]
+```
+
+```{r}
+res_ALC_const <- ALC(X_raw=raw, 
+                     y=y, 
+                     XX_raw=XX_raw, 
+                     yy=yy, 
+                     niter=50)
+```
+
+## plot to check rmse progress
+
+```{r}
+par(mfrow=c(1,2))
+plot(15:65, res2$rmse.alc, col=2, pch=20)
+```
+
+
+# run EI
+
+```{r}
+source('functions.R')
+res_EI <- optim.EI(f=simulator, 
+                   X=X, 
+                   y=y, 
+                   end=50)
+```
+
+
+```{r}
+close(matlab)
+```
+
