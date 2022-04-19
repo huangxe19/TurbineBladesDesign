@@ -1,2 +1,3 @@
-# TurbineBladesDesign
-Project for STA 643
+# Turbine Blades Design - Computer Experiment Designs
+Authors: Yuxuan Chen, Xige Huang, Gaojia Xu, Guanqi Zeng
+
